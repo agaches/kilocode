@@ -5,3 +5,4 @@ Ce dépôt contient des exemples de code et des projets réalisés avec l'aide d
 ## Projets
 
 *   [`civweb/`](civweb/README.md): Un clone simplifié du jeu Civilization, développé en HTML, CSS et JavaScript pur.
+*   [`riverraid/`](riverraid/index.html): Un clone simplifié du jeu classique River Raid, développé en HTML, CSS et JavaScript pur.

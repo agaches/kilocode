@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>River Raid Clone</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        <div id="game-ui">
+            <div id="score">Score: 0</div>
+            <div id="fuel">Fuel: 100%</div>
+        </div>
+        <div id="start-screen" class="game-screen">
+            <h1>River Raid Clone</h1>
+            <p>Press SPACE to Start</p>
+        </div>
+        <div id="game-over-screen" class="game-screen hidden">
+            <h1>Game Over!</h1>
+            <p id="final-score"></p>
+            <p>Press SPACE to Restart</p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

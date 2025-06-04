@@ -1,0 +1,66 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #222;
+    font-family: 'Press Start 2P', cursive; /* A retro-style font */
+    color: #eee;
+}
+
+#game-container {
+    position: relative;
+    width: 400px;
+    height: 600px;
+    border: 2px solid #eee;
+    overflow: hidden;
+    background-color: #000;
+}
+
+canvas {
+    display: block;
+    background-color: #000;
+}
+
+#game-ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 1em;
+    z-index: 10;
+}
+
+.game-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    z-index: 20;
+}
+
+.game-screen h1 {
+    color: #0f0;
+    font-size: 2em;
+    margin-bottom: 20px;
+}
+
+.game-screen p {
+    font-size: 1.2em;
+    margin-top: 10px;
+}
+
+.hidden {
+    display: none;
+}
