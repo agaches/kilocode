@@ -256,12 +256,13 @@ const RIVER_SHAPES = [
 ];
 
 class RiverBank {
-    constructor(x, y, width, height, color = 'green') {
+    constructor(x, y, width, height, color, type) { // Added 'type' parameter
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.color = color;
+        this.type = type; // Store the type (e.g., 'bank', 'river', 'island')
     }
 
     draw() {
@@ -285,6 +286,29 @@ class RiverGenerator {
         this.islandSide = null; // 'left' or 'right'
         this.islandWidth = 0;
         this.islandStartSegment = 0;
+
+        this.colorPalettes = [
+            { bank: 'green', river: 'blue' },
+            { bank: 'darkolivegreen', river: 'darkblue' },
+            { bank: 'saddlebrown', river: 'darkcyan' },
+            { bank: 'gray', river: 'darkslategray' },
+            { bank: 'darkgreen', river: 'navy' } // Added another palette
+        ];
+        this.currentPaletteIndex = 0;
+        this.colorCycleInterval = 60 * 10; // Change color every 10 seconds (60 FPS * 10)
+        this.colorCycleTimer = this.colorCycleInterval;
+        this.bankColor = this.colorPalettes[this.currentPaletteIndex].bank;
+        this.riverColor = this.colorPalettes[this.currentPaletteIndex].river;
+    }
+
+    updateColors() {
+        this.colorCycleTimer--;
+        if (this.colorCycleTimer <= 0) {
+            this.currentPaletteIndex = (this.currentPaletteIndex + 1) % this.colorPalettes.length;
+            this.bankColor = this.colorPalettes[this.currentPaletteIndex].bank;
+            this.riverColor = this.colorPalettes[this.currentPaletteIndex].river;
+            this.colorCycleTimer = this.colorCycleInterval;
+        }
     }
 
     generateSegment(y) {
@@ -316,10 +340,10 @@ class RiverGenerator {
             }
             // Draw island
             if (this.islandSide === 'left') {
-                segmentElements.push(new RiverBank(leftBankWidth, y, this.islandWidth, RIVER_SEGMENT_HEIGHT, 'darkgreen'));
+                segmentElements.push(new RiverBank(leftBankWidth, y, this.islandWidth, RIVER_SEGMENT_HEIGHT, 'darkgreen', 'island')); // Added 'island' type
                 leftBankWidth += this.islandWidth; // Adjust left bank for island
             } else {
-                segmentElements.push(new RiverBank(GAME_WIDTH - rightBankWidth - this.islandWidth, y, this.islandWidth, RIVER_SEGMENT_HEIGHT, 'darkgreen'));
+                segmentElements.push(new RiverBank(GAME_WIDTH - rightBankWidth - this.islandWidth, y, this.islandWidth, RIVER_SEGMENT_HEIGHT, 'darkgreen', 'island')); // Added 'island' type
                 rightBankWidth += this.islandWidth; // Adjust right bank for island
             }
         } else if (this.islandActive && this.segmentCounter > this.islandStartSegment + 5) { // Island fades after 5 segments
@@ -328,8 +352,12 @@ class RiverGenerator {
         }
 
 
-        segmentElements.push(new RiverBank(0, y, leftBankWidth, RIVER_SEGMENT_HEIGHT));
-        segmentElements.push(new RiverBank(GAME_WIDTH - rightBankWidth, y, rightBankWidth, RIVER_SEGMENT_HEIGHT));
+        // Draw the river itself
+        segmentElements.push(new RiverBank(leftBankWidth, y, GAME_WIDTH - leftBankWidth - rightBankWidth, RIVER_SEGMENT_HEIGHT, this.riverColor, 'river')); // Added 'river' type
+
+        // Draw the banks
+        segmentElements.push(new RiverBank(0, y, leftBankWidth, RIVER_SEGMENT_HEIGHT, this.bankColor, 'bank')); // Added 'bank' type
+        segmentElements.push(new RiverBank(GAME_WIDTH - rightBankWidth, y, rightBankWidth, RIVER_SEGMENT_HEIGHT, this.bankColor, 'bank')); // Added 'bank' type
 
         this.currentLeftBankWidth = leftBankWidth;
         this.currentRightBankWidth = rightBankWidth;
@@ -435,6 +463,9 @@ function update() {
     // Update last generated Y positions to simulate scrolling
     lastEnvironmentY += RIVER_SPEED;
     lastEnemyY += RIVER_SPEED;
+
+    // Update river and bank colors
+    riverGenerator.updateColors();
 
     // Generate new environment elements
     generateEnvironment();
@@ -550,8 +581,10 @@ function checkCollisions() {
             player.y < item.y + item.height &&
             player.y + player.height > item.y
         ) {
-            if (item instanceof RiverBank || item instanceof Bridge) {
+            if (item instanceof RiverBank && (item.type === 'bank' || item.type === 'island')) { // Only take hit from banks or islands
                 player.takeHit(); // Player takes a hit instead of immediate game over
+            } else if (item instanceof Bridge) { // Bridges still cause a hit
+                player.takeHit();
             } else if (item instanceof FuelDepot) {
                 fuel = Math.min(100, fuel + 20); // Refuel
                 item.toRemove = true; // Mark fuel depot for removal
@@ -658,7 +691,7 @@ function startGame() {
     enemies = [];
     environment = [];
     riverGenerator = new RiverGenerator(); // Initialize the river generator
-    lastEnvironmentY = 0; // Start generation from the current screen bottom
+    lastEnvironmentY = GAME_HEIGHT; // Start generation from the bottom of the screen to fill it
     lastEnemyY = -200; // Initialize to generate enemies above the screen
 
     startScreen.classList.add('hidden');
@@ -684,10 +717,11 @@ document.addEventListener('keydown', (e) => {
     } else if (e.code === 'ArrowDown') { // Handle ArrowDown for vertical movement
         player.dy = PLAYER_VERTICAL_SPEED;
     } else if (e.code === 'Space') {
-        if (!gameRunning) {
+        if (!gameRunning) { // If game is not running (game over or initial state)
             startGame();
+        } else { // If game is running, then shoot
+            player.isShooting = true;
         }
-        player.isShooting = true;
     }
     // Prevent default behavior for spacebar to avoid scrolling
     if (e.code === 'Space') {
@@ -707,4 +741,5 @@ document.addEventListener('keyup', (e) => {
 
 // Initial setup
 player = new Player(); // Initialize player for the start screen
-draw(); // Draw initial state
+startGame(); // Start the game automatically
+// No need for an initial draw() here, startGame() calls gameLoop() which handles drawing
