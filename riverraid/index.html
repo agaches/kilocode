@@ -9,9 +9,20 @@
 <body>
     <div id="game-container">
         <canvas id="gameCanvas" width="400" height="600"></canvas>
-        <div id="game-ui">
-            <div id="score">Score: 0</div>
-            <div id="fuel">Fuel: 100%</div>
+        <div id="game-ui-top" class="hidden">
+            <!-- This can be used for other top-level UI if needed, but for now, it's hidden -->
+        </div>
+        <div id="game-ui-bottom">
+            <div id="score-display">Score: 0</div>
+            <div id="fuel-gauge-container">
+                <span id="fuel-label">FUEL:</span>
+                <div id="fuel-bar-background">
+                    <div id="fuel-bar-fill"></div>
+                </div>
+            </div>
+            <div id="lives-display">
+                <!-- Lives will be rendered here by JavaScript -->
+            </div>
         </div>
         <div id="start-screen" class="game-screen">
             <h1>River Raid Clone</h1>

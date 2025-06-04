@@ -1,18 +1,21 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const scoreDisplay = document.getElementById('score');
-const fuelDisplay = document.getElementById('fuel');
+const scoreDisplay = document.getElementById('score-display');
+const fuelBarFill = document.getElementById('fuel-bar-fill');
+const livesDisplay = document.getElementById('lives-display');
 const startScreen = document.getElementById('start-screen');
 const gameOverScreen = document.getElementById('game-over-screen');
 const finalScoreDisplay = document.getElementById('final-score');
 
 const GAME_WIDTH = canvas.width;
-const GAME_HEIGHT = canvas.height;
+const UI_BAR_HEIGHT = 40; // Height of the bottom UI bar
+const GAME_HEIGHT = canvas.height - UI_BAR_HEIGHT; // Adjust playable height
 
 // Game State
 let gameRunning = false;
 let score = 0;
 let fuel = 100;
+let lives = 2; // Starting with 2 extra lives
 let player;
 let bullets = [];
 let enemies = [];
@@ -44,19 +47,30 @@ loadSprites();
 const PLAYER_WIDTH = 30;
 const PLAYER_HEIGHT = 40;
 const PLAYER_SPEED = 5;
+const PLAYER_VERTICAL_SPEED = 3; // New constant for vertical speed
 const PLAYER_BULLET_SPEED = 7;
+const INVULNERABILITY_DURATION = 120; // 2 seconds at 60 FPS
 
 class Player {
     constructor() {
         this.x = GAME_WIDTH / 2 - PLAYER_WIDTH / 2;
-        this.y = GAME_HEIGHT - PLAYER_HEIGHT - 20;
+        this.y = GAME_HEIGHT - PLAYER_HEIGHT - 20; // Adjusted initial Y
         this.width = PLAYER_WIDTH;
         this.height = PLAYER_HEIGHT;
         this.dx = 0;
+        this.dy = 0; // New property for vertical movement
         this.isShooting = false;
+        this.isInvulnerable = false;
+        this.invulnerabilityTimer = 0;
+        this.blinkTimer = 0;
     }
 
     draw() {
+        if (this.isInvulnerable && Math.floor(this.blinkTimer / 5) % 2 === 0) {
+            // Blink effect: don't draw if invulnerable and blink timer is in "off" phase
+            return;
+        }
+
         if (playerSprite.complete && playerSprite.naturalHeight !== 0) {
             ctx.drawImage(playerSprite, this.x, this.y, this.width, this.height);
         } else {
@@ -67,13 +81,29 @@ class Player {
 
     update() {
         this.x += this.dx;
+        this.y += this.dy; // Apply vertical movement
 
-        // Keep player within bounds
+        // Keep player within horizontal bounds
         if (this.x < 0) this.x = 0;
         if (this.x + this.width > GAME_WIDTH) this.x = GAME_WIDTH - this.width;
 
+        // Keep player within vertical bounds (considering the UI bar)
+        if (this.y < 0) this.y = 0;
+        if (this.y + this.height > GAME_HEIGHT) this.y = GAME_HEIGHT - this.height;
+
+
         if (this.isShooting) {
             this.shoot();
+        }
+
+        // Update invulnerability timer
+        if (this.isInvulnerable) {
+            this.invulnerabilityTimer--;
+            this.blinkTimer++;
+            if (this.invulnerabilityTimer <= 0) {
+                this.isInvulnerable = false;
+                this.blinkTimer = 0;
+            }
         }
     }
 
@@ -83,6 +113,22 @@ class Player {
 
         const bullet = new Bullet(this.x + this.width / 2 - 2, this.y, PLAYER_BULLET_SPEED);
         bullets.push(bullet);
+    }
+
+    takeHit() {
+        if (!this.isInvulnerable) {
+            lives--;
+            if (lives < 0) {
+                gameOver();
+            } else {
+                this.isInvulnerable = true;
+                this.invulnerabilityTimer = INVULNERABILITY_DURATION;
+                this.blinkTimer = 0;
+                // Reset player position after hit
+                this.x = GAME_WIDTH / 2 - PLAYER_WIDTH / 2;
+                this.y = GAME_HEIGHT - PLAYER_HEIGHT - 20;
+            }
+        }
     }
 }
 
@@ -377,13 +423,13 @@ function update() {
     // Update Enemies
     enemies = enemies.filter(enemy => {
         enemy.update();
-        return enemy.y < GAME_HEIGHT && !enemy.toRemove; // Remove enemies off-screen or marked for removal
+        return enemy.y < GAME_HEIGHT + UI_BAR_HEIGHT && !enemy.toRemove; // Remove enemies off-screen or marked for removal
     });
 
     // Update Environment
     environment = environment.filter(item => {
         item.update();
-        return item.y < GAME_HEIGHT && !item.toRemove; // Remove off-screen environment items or marked for removal
+        return item.y < GAME_HEIGHT + UI_BAR_HEIGHT && !item.toRemove; // Remove off-screen environment items or marked for removal
     });
 
     // Update last generated Y positions to simulate scrolling
@@ -402,16 +448,19 @@ function update() {
     fuel -= 0.01; // Adjust consumption rate
     if (fuel <= 0) {
         fuel = 0;
-        gameOver();
+        player.takeHit(); // Lose a life if fuel runs out
     }
-    fuelDisplay.textContent = `Fuel: ${Math.floor(fuel)}%`;
+    fuelBarFill.style.width = `${fuel}%`; // Update fuel gauge
 
     // Update Score
     scoreDisplay.textContent = `Score: ${score}`;
+
+    // Update Lives Display
+    renderLives();
 }
 
 function draw() {
-    ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    ctx.clearRect(0, 0, GAME_WIDTH, canvas.height); // Clear entire canvas including UI area
 
     // Draw Environment
     environment.forEach(item => item.draw());
@@ -502,7 +551,7 @@ function checkCollisions() {
             player.y + player.height > item.y
         ) {
             if (item instanceof RiverBank || item instanceof Bridge) {
-                gameOver(); // Crash into banks or bridges
+                player.takeHit(); // Player takes a hit instead of immediate game over
             } else if (item instanceof FuelDepot) {
                 fuel = Math.min(100, fuel + 20); // Refuel
                 item.toRemove = true; // Mark fuel depot for removal
@@ -518,7 +567,7 @@ function checkCollisions() {
             player.y < enemy.y + enemy.height &&
             player.y + player.height > enemy.y
         ) {
-            gameOver(); // Crash into enemy
+            player.takeHit(); // Player takes a hit instead of immediate game over
         }
     });
 
@@ -587,11 +636,23 @@ function checkCollisions() {
     bullets = bullets.filter(bullet => !bullet.toRemove);
 }
 
+function renderLives() {
+    livesDisplay.innerHTML = ''; // Clear current lives display
+    for (let i = 0; i < lives; i++) {
+        const lifeIcon = document.createElement('img');
+        lifeIcon.src = 'assets/player.png'; // Use player sprite for life icon
+        lifeIcon.alt = 'Life';
+        lifeIcon.style.width = '20px'; // Ensure consistent size
+        lifeIcon.style.height = '20px';
+        livesDisplay.appendChild(lifeIcon);
+    }
+}
 
 function startGame() {
     gameRunning = true;
     score = 0;
     fuel = 100;
+    lives = 2; // Reset lives for new game
     player = new Player();
     bullets = [];
     enemies = [];
@@ -618,6 +679,10 @@ document.addEventListener('keydown', (e) => {
         player.dx = -PLAYER_SPEED;
     } else if (e.code === 'ArrowRight') {
         player.dx = PLAYER_SPEED;
+    } else if (e.code === 'ArrowUp') { // Handle ArrowUp for vertical movement
+        player.dy = -PLAYER_VERTICAL_SPEED;
+    } else if (e.code === 'ArrowDown') { // Handle ArrowDown for vertical movement
+        player.dy = PLAYER_VERTICAL_SPEED;
     } else if (e.code === 'Space') {
         if (!gameRunning) {
             startGame();
@@ -633,6 +698,8 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('keyup', (e) => {
     if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
         player.dx = 0;
+    } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') { // Stop vertical movement
+        player.dy = 0;
     } else if (e.code === 'Space') {
         player.isShooting = false;
     }
