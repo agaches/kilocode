@@ -16,6 +16,7 @@ let gameRunning = false;
 let score = 0;
 let fuel = 100;
 let lives = 2; // Starting with 2 extra lives
+let currentLevel = 1; // New: Current game level
 let player;
 let bullets = [];
 let enemies = [];
@@ -159,7 +160,8 @@ class Bullet {
 // Enemy
 const ENEMY_WIDTH = 30;
 const ENEMY_HEIGHT = 30;
-const ENEMY_SPEED = 2;
+const BASE_ENEMY_SPEED = 2; // New: Base enemy speed
+const ENEMY_SPEED_INCREMENT = 0.2; // New: How much enemy speed increases per level
 
 class Enemy {
     constructor(x, y, type = 'ship') {
@@ -167,7 +169,7 @@ class Enemy {
         this.y = y;
         this.width = ENEMY_WIDTH;
         this.height = ENEMY_HEIGHT;
-        this.speed = ENEMY_SPEED;
+        this.speed = BASE_ENEMY_SPEED + (currentLevel - 1) * ENEMY_SPEED_INCREMENT; // Dynamic speed
         this.type = type;
         this.toRemove = false;
         this.dx = 0; // Horizontal movement for patrolling
@@ -239,7 +241,8 @@ class Enemy {
 }
 
 // Environment (River banks, bridges, fuel depots)
-const RIVER_SPEED = 2; // Speed at which the river scrolls
+const BASE_RIVER_SPEED = 2; // New: Base speed at which the river scrolls
+const RIVER_SPEED_INCREMENT = 0.1; // New: How much river speed increases per level
 const RIVER_SEGMENT_HEIGHT = 32; // Each block is 32 lines high
 const RIVER_MIN_WIDTH = 100; // Minimum width of the navigable river
 const RIVER_MAX_WIDTH = GAME_WIDTH - (2 * 20); // Max width considering some bank space
@@ -271,7 +274,7 @@ class RiverBank {
     }
 
     update() {
-        this.y += RIVER_SPEED;
+        this.y += BASE_RIVER_SPEED + (currentLevel - 1) * RIVER_SPEED_INCREMENT; // Dynamic speed
     }
 }
 
@@ -395,7 +398,7 @@ class FuelDepot {
     }
 
     update() {
-        this.y += RIVER_SPEED;
+        this.y += BASE_RIVER_SPEED + (currentLevel - 1) * RIVER_SPEED_INCREMENT; // Dynamic speed
     }
 }
 
@@ -423,7 +426,7 @@ class Bridge {
     }
 
     update() {
-        this.y += RIVER_SPEED;
+        this.y += BASE_RIVER_SPEED + (currentLevel - 1) * RIVER_SPEED_INCREMENT; // Dynamic speed
     }
 }
 
@@ -461,11 +464,21 @@ function update() {
     });
 
     // Update last generated Y positions to simulate scrolling
-    lastEnvironmentY += RIVER_SPEED;
-    lastEnemyY += RIVER_SPEED;
+    const currentRiverSpeed = BASE_RIVER_SPEED + (currentLevel - 1) * RIVER_SPEED_INCREMENT;
+    lastEnvironmentY += currentRiverSpeed;
+    lastEnemyY += currentRiverSpeed;
 
     // Update river and bank colors
     riverGenerator.updateColors();
+
+    // Level Progression
+    const LEVEL_SCORE_THRESHOLD = 1000; // Score needed to advance a level
+    const newLevel = Math.floor(score / LEVEL_SCORE_THRESHOLD) + 1;
+    if (newLevel > currentLevel) {
+        currentLevel = newLevel;
+        console.log(`Level Up! Current Level: ${currentLevel}`);
+        // Potentially add visual feedback for level up
+    }
 
     // Generate new environment elements
     generateEnvironment();
@@ -537,8 +550,15 @@ function generateEnvironment() {
 }
 
 let lastEnemyY = 0; // Tracks the top Y-coordinate of the last generated enemy
+const ENEMY_SPAWN_INTERVAL_BASE_MULTIPLIER = 2;
+const ENEMY_SPAWN_INTERVAL_DECREMENT_PER_LEVEL = 0.1; // Decrease multiplier by this much per level
+
 function generateEnemies() {
-    const spawnInterval = RIVER_SEGMENT_HEIGHT * 2; // Spawn an enemy every two river segments
+    // Calculate dynamic spawn interval
+    let spawnMultiplier = ENEMY_SPAWN_INTERVAL_BASE_MULTIPLIER - (currentLevel - 1) * ENEMY_SPAWN_INTERVAL_DECREMENT_PER_LEVEL;
+    spawnMultiplier = Math.max(0.5, spawnMultiplier); // Ensure minimum spawn interval (e.g., 0.5x base)
+    const spawnInterval = RIVER_SEGMENT_HEIGHT * spawnMultiplier; // Spawn an enemy every X river segments
+
     // Generate new enemies as long as the top of the generated enemies is above the visible screen area.
     while (lastEnemyY > -GAME_HEIGHT - ENEMY_HEIGHT) {
         const newY = lastEnemyY - spawnInterval;
@@ -686,6 +706,7 @@ function startGame() {
     score = 0;
     fuel = 100;
     lives = 2; // Reset lives for new game
+    currentLevel = 1; // New: Reset level for new game
     player = new Player();
     bullets = [];
     enemies = [];
@@ -741,5 +762,13 @@ document.addEventListener('keyup', (e) => {
 
 // Initial setup
 player = new Player(); // Initialize player for the start screen
-startGame(); // Start the game automatically
-// No need for an initial draw() here, startGame() calls gameLoop() which handles drawing
+
+// Initialize river generator and pre-generate environment for the initial screen to be colored
+riverGenerator = new RiverGenerator();
+lastEnvironmentY = GAME_HEIGHT; // Start generation from the bottom of the screen to fill it
+for (let i = 0; i < Math.ceil(GAME_HEIGHT / RIVER_SEGMENT_HEIGHT) + 2; i++) { // +2 for buffer
+    const segmentElements = riverGenerator.generateSegment(lastEnvironmentY - RIVER_SEGMENT_HEIGHT);
+    environment.push(...segmentElements);
+    lastEnvironmentY -= RIVER_SEGMENT_HEIGHT;
+}
+draw(); // Draw initial state with colored background
