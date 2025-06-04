@@ -4,4 +4,4 @@ Ce dépôt contient des exemples de code et des projets réalisés avec l'aide d
 
 ## Projets
 
-*   `civweb/`: Un clone simplifié du jeu Civilization, développé en HTML, CSS et JavaScript pur.
+*   [`civweb/`](civweb/README.md): Un clone simplifié du jeu Civilization, développé en HTML, CSS et JavaScript pur.
