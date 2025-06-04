@@ -18,6 +18,28 @@ let bullets = [];
 let enemies = [];
 let environment = []; // For river banks, bridges, fuel depots
 
+// Sprites (will be loaded)
+const playerSprite = new Image();
+const shipSprite = new Image();
+const planeSprite = new Image();
+const helicopterSprite = new Image();
+const fuelDepotSprite = new Image();
+const bridgeSprite = new Image();
+const houseSprite = new Image();
+
+function loadSprites() {
+    playerSprite.src = 'assets/player.png'; // Placeholder paths
+    shipSprite.src = 'assets/ship.png';
+    planeSprite.src = 'assets/plane.png';
+    helicopterSprite.src = 'assets/helicopter.png';
+    fuelDepotSprite.src = 'assets/fuel_depot.png';
+    bridgeSprite.src = 'assets/bridge.png';
+    houseSprite.src = 'assets/house.png';
+}
+
+// Call loadSprites at the beginning
+loadSprites();
+
 // Player
 const PLAYER_WIDTH = 30;
 const PLAYER_HEIGHT = 40;
@@ -35,8 +57,12 @@ class Player {
     }
 
     draw() {
-        ctx.fillStyle = 'blue';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        if (playerSprite.complete && playerSprite.naturalHeight !== 0) {
+            ctx.drawImage(playerSprite, this.x, this.y, this.width, this.height);
+        } else {
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
     }
 
     update() {
@@ -84,13 +110,13 @@ class Bullet {
     }
 }
 
-// Enemy (placeholder for now)
+// Enemy
 const ENEMY_WIDTH = 30;
 const ENEMY_HEIGHT = 30;
 const ENEMY_SPEED = 2;
 
 class Enemy {
-    constructor(x, y, type = 'boat') {
+    constructor(x, y, type = 'ship') {
         this.x = x;
         this.y = y;
         this.width = ENEMY_WIDTH;
@@ -98,38 +124,182 @@ class Enemy {
         this.speed = ENEMY_SPEED;
         this.type = type;
         this.toRemove = false;
+        this.dx = 0; // Horizontal movement for patrolling
+        this.patrolDirection = Math.random() < 0.5 ? 1 : -1; // 1 for right, -1 for left
+        this.patrolSpeed = 1; // Speed for patrolling
     }
 
     draw() {
-        ctx.fillStyle = 'red';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        let spriteToDraw = null;
+        let defaultColor = 'red';
+
+        switch (this.type) {
+            case 'ship':
+                spriteToDraw = shipSprite;
+                defaultColor = 'darkred';
+                break;
+            case 'plane':
+                spriteToDraw = planeSprite;
+                defaultColor = 'purple';
+                break;
+            case 'helicopter':
+                spriteToDraw = helicopterSprite;
+                defaultColor = 'orange';
+                break;
+            case 'house':
+                spriteToDraw = houseSprite;
+                defaultColor = 'gray';
+                break;
+        }
+
+        if (spriteToDraw && spriteToDraw.complete && spriteToDraw.naturalHeight !== 0) {
+            ctx.drawImage(spriteToDraw, this.x, this.y, this.width, this.height);
+        } else {
+            ctx.fillStyle = defaultColor;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
     }
 
     update() {
         this.y += this.speed;
+
+        // Patrolling behavior for ships and helicopters
+        if (this.type === 'ship' || this.type === 'helicopter') {
+            this.x += this.patrolDirection * this.patrolSpeed;
+
+            // Reverse direction if hitting river banks (simplified)
+            const riverLeftBank = riverGenerator.currentLeftBankWidth;
+            const riverRightBank = GAME_WIDTH - riverGenerator.currentRightBankWidth;
+
+            if (this.x < riverLeftBank) {
+                this.x = riverLeftBank;
+                this.patrolDirection *= -1;
+            } else if (this.x + this.width > riverRightBank) {
+                this.x = riverRightBank - this.width;
+                this.patrolDirection *= -1;
+            }
+        } else if (this.type === 'plane') {
+            // Planes move consistently in one direction
+            this.x += this.patrolDirection * this.patrolSpeed * 1.5; // Planes move a bit faster
+
+            // Wrap around screen if hitting edges
+            if (this.patrolDirection === 1 && this.x > GAME_WIDTH) {
+                this.x = -this.width;
+            } else if (this.patrolDirection === -1 && this.x + this.width < 0) {
+                this.x = GAME_WIDTH;
+            }
+        }
     }
 }
 
 // Environment (River banks, bridges, fuel depots)
-const RIVER_BANK_WIDTH = 80; // Width of each bank
-const RIVER_SPEED = 2;
+const RIVER_SPEED = 2; // Speed at which the river scrolls
+const RIVER_SEGMENT_HEIGHT = 32; // Each block is 32 lines high
+const RIVER_MIN_WIDTH = 100; // Minimum width of the navigable river
+const RIVER_MAX_WIDTH = GAME_WIDTH - (2 * 20); // Max width considering some bank space
+
+// River Generation Constants (simplified from assembly for web)
+const RIVER_SHAPES = [
+    { type: 'straight', minBank: 80, maxBank: 80 },
+    { type: 'narrow_left', minBank: 60, maxBank: 100 },
+    { type: 'narrow_right', minBank: 100, maxBank: 60 },
+    { type: 'curve_left', minBank: 80, maxBank: 120 },
+    { type: 'curve_right', minBank: 120, maxBank: 80 },
+    { type: 'island_left', minBank: 80, maxBank: 80, island: 'left' },
+    { type: 'island_right', minBank: 80, maxBank: 80, island: 'right' },
+];
 
 class RiverBank {
-    constructor(x, y, width, height) {
+    constructor(x, y, width, height, color = 'green') {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
+        this.color = color;
     }
 
     draw() {
-        ctx.fillStyle = 'green';
+        ctx.fillStyle = this.color;
         ctx.fillRect(this.x, this.y, this.width, this.height);
     }
 
     update() {
         this.y += RIVER_SPEED;
     }
+}
+
+class RiverGenerator {
+    constructor() {
+        this.currentLeftBankWidth = 80;
+        this.currentRightBankWidth = 80;
+        this.currentRiverShapeIndex = 0;
+        this.segmentCounter = 0;
+        this.segmentsPerShape = 16; // Each section is divided into 16 blocks
+        this.islandActive = false;
+        this.islandSide = null; // 'left' or 'right'
+        this.islandWidth = 0;
+        this.islandStartSegment = 0;
+    }
+
+    generateSegment(y) {
+        const segmentElements = [];
+        let leftBankWidth = this.currentLeftBankWidth;
+        let rightBankWidth = this.currentRightBankWidth;
+
+        // Apply current river shape
+        const shape = RIVER_SHAPES[this.currentRiverShapeIndex];
+
+        // Smooth transition between shapes
+        if (this.segmentCounter < this.segmentsPerShape / 2) {
+            // Transitioning towards new shape
+            leftBankWidth = lerp(this.currentLeftBankWidth, shape.minBank, this.segmentCounter / (this.segmentsPerShape / 2));
+            rightBankWidth = lerp(this.currentRightBankWidth, shape.maxBank, this.segmentCounter / (this.segmentsPerShape / 2));
+        } else {
+            // Holding the shape
+            leftBankWidth = shape.minBank;
+            rightBankWidth = shape.maxBank;
+        }
+
+        // Handle islands
+        if (shape.island) {
+            if (!this.islandActive) {
+                this.islandActive = true;
+                this.islandSide = shape.island;
+                this.islandWidth = 30 + Math.random() * 30; // Random island width
+                this.islandStartSegment = this.segmentCounter;
+            }
+            // Draw island
+            if (this.islandSide === 'left') {
+                segmentElements.push(new RiverBank(leftBankWidth, y, this.islandWidth, RIVER_SEGMENT_HEIGHT, 'darkgreen'));
+                leftBankWidth += this.islandWidth; // Adjust left bank for island
+            } else {
+                segmentElements.push(new RiverBank(GAME_WIDTH - rightBankWidth - this.islandWidth, y, this.islandWidth, RIVER_SEGMENT_HEIGHT, 'darkgreen'));
+                rightBankWidth += this.islandWidth; // Adjust right bank for island
+            }
+        } else if (this.islandActive && this.segmentCounter > this.islandStartSegment + 5) { // Island fades after 5 segments
+            this.islandActive = false;
+            this.islandSide = null;
+        }
+
+
+        segmentElements.push(new RiverBank(0, y, leftBankWidth, RIVER_SEGMENT_HEIGHT));
+        segmentElements.push(new RiverBank(GAME_WIDTH - rightBankWidth, y, rightBankWidth, RIVER_SEGMENT_HEIGHT));
+
+        this.currentLeftBankWidth = leftBankWidth;
+        this.currentRightBankWidth = rightBankWidth;
+
+        this.segmentCounter++;
+        if (this.segmentCounter >= this.segmentsPerShape) {
+            this.segmentCounter = 0;
+            this.currentRiverShapeIndex = Math.floor(Math.random() * RIVER_SHAPES.length);
+        }
+
+        return segmentElements;
+    }
+}
+
+function lerp(a, b, t) {
+    return a + (b - a) * t;
 }
 
 class FuelDepot {
@@ -142,8 +312,12 @@ class FuelDepot {
     }
 
     draw() {
-        ctx.fillStyle = 'orange';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        if (fuelDepotSprite.complete && fuelDepotSprite.naturalHeight !== 0) {
+            ctx.drawImage(fuelDepotSprite, this.x, this.y, this.width, this.height);
+        } else {
+            ctx.fillStyle = 'orange';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
     }
 
     update() {
@@ -162,8 +336,16 @@ class Bridge {
     }
 
     draw() {
-        ctx.fillStyle = 'brown';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        if (bridgeSprite.complete && bridgeSprite.naturalHeight !== 0) {
+            // Draw the bridge by repeating the segment sprite
+            const segmentWidth = bridgeSprite.width;
+            for (let i = 0; i < this.width; i += segmentWidth) {
+                ctx.drawImage(bridgeSprite, this.x + i, this.y, Math.min(segmentWidth, this.width - i), this.height);
+            }
+        } else {
+            ctx.fillStyle = 'brown';
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
     }
 
     update() {
@@ -244,28 +426,29 @@ function draw() {
     enemies.forEach(enemy => enemy.draw());
 }
 
+let riverGenerator; // Instance of RiverGenerator
 let lastEnvironmentY = 0; // Tracks the top Y-coordinate of the last generated environment segment
 function generateEnvironment() {
-    const segmentHeight = 50;
     // Generate new segments as long as the top of the generated environment is above the visible screen area.
-    // We generate until `lastEnvironmentY` is sufficiently negative (e.g., -GAME_HEIGHT) to pre-fill the area above the screen.
-    while (lastEnvironmentY > -GAME_HEIGHT) {
-        const newY = lastEnvironmentY - segmentHeight; // Calculate the top Y for the new segment
+    while (lastEnvironmentY > -GAME_HEIGHT - RIVER_SEGMENT_HEIGHT) { // Generate slightly beyond the top
+        const newY = lastEnvironmentY - RIVER_SEGMENT_HEIGHT; // Calculate the top Y for the new segment
 
-        // Generate river banks
-        const leftBank = new RiverBank(0, newY, RIVER_BANK_WIDTH, segmentHeight);
-        const rightBank = new RiverBank(GAME_WIDTH - RIVER_BANK_WIDTH, newY, RIVER_BANK_WIDTH, segmentHeight);
-        environment.push(leftBank, rightBank);
+        const segmentElements = riverGenerator.generateSegment(newY);
+        environment.push(...segmentElements);
 
-        // Randomly add bridges or fuel depots
+        // Randomly add bridges or fuel depots (only in the navigable river area)
+        const currentRiverWidth = GAME_WIDTH - riverGenerator.currentLeftBankWidth - riverGenerator.currentRightBankWidth;
+        const riverStartX = riverGenerator.currentLeftBankWidth;
+
         const random = Math.random();
-        if (random < 0.1) { // 10% chance for a bridge
-            const bridgeWidth = GAME_WIDTH - (RIVER_BANK_WIDTH * 2);
-            const bridge = new Bridge(RIVER_BANK_WIDTH, newY + segmentHeight / 2 - 10, bridgeWidth, 20);
+        if (random < 0.05) { // 5% chance for a bridge
+            const bridgeWidth = currentRiverWidth; // Bridge spans full river width
+            const bridgeX = riverStartX;
+            const bridge = new Bridge(bridgeX, newY + RIVER_SEGMENT_HEIGHT / 2 - 10, bridgeWidth, 20);
             environment.push(bridge);
-        } else if (random < 0.2) { // 10% chance for a fuel depot
-            const fuelX = RIVER_BANK_WIDTH + Math.random() * (GAME_WIDTH - RIVER_BANK_WIDTH * 2 - 20);
-            const fuelDepot = new FuelDepot(fuelX, newY + segmentHeight / 2 - 10);
+        } else if (random < 0.1) { // 5% chance for a fuel depot
+            const fuelX = riverStartX + Math.random() * (currentRiverWidth - 20);
+            const fuelDepot = new FuelDepot(fuelX, newY + RIVER_SEGMENT_HEIGHT / 2 - 10);
             environment.push(fuelDepot);
         }
 
@@ -275,16 +458,34 @@ function generateEnvironment() {
 
 let lastEnemyY = 0; // Tracks the top Y-coordinate of the last generated enemy
 function generateEnemies() {
-    const spawnInterval = 100; // Spacing between enemy generation attempts
+    const spawnInterval = RIVER_SEGMENT_HEIGHT * 2; // Spawn an enemy every two river segments
     // Generate new enemies as long as the top of the generated enemies is above the visible screen area.
-    // We generate until `lastEnemyY` is sufficiently negative (e.g., -GAME_HEIGHT) to pre-fill the area above the screen.
-    while (lastEnemyY > -GAME_HEIGHT) { // Generate until we have enough enemies above the screen
+    while (lastEnemyY > -GAME_HEIGHT - ENEMY_HEIGHT) {
         const newY = lastEnemyY - spawnInterval;
 
-        if (Math.random() < 0.3) { // 30% chance to spawn an enemy
-            const enemyX = RIVER_BANK_WIDTH + Math.random() * (GAME_WIDTH - RIVER_BANK_WIDTH * 2 - ENEMY_WIDTH);
-            const enemy = new Enemy(enemyX, newY - ENEMY_HEIGHT); // Place enemy at the top of the new spawn area
-            enemies.push(enemy);
+        // Only generate if there's enough space in the river
+        const currentRiverWidth = GAME_WIDTH - riverGenerator.currentLeftBankWidth - riverGenerator.currentRightBankWidth;
+        const riverStartX = riverGenerator.currentLeftBankWidth;
+
+        if (currentRiverWidth > ENEMY_WIDTH + 20) { // Ensure enough space for enemy + padding
+            const random = Math.random();
+            let enemyType = null;
+
+            if (random < 0.4) { // 40% chance for a ship
+                enemyType = 'ship';
+            } else if (random < 0.6) { // 20% chance for a helicopter
+                enemyType = 'helicopter';
+            } else if (random < 0.7) { // 10% chance for a plane
+                enemyType = 'plane';
+            } else if (random < 0.8) { // 10% chance for a house (static environment object)
+                enemyType = 'house';
+            }
+
+            if (enemyType) {
+                const enemyX = riverStartX + Math.random() * (currentRiverWidth - ENEMY_WIDTH);
+                const enemy = new Enemy(enemyX, newY - ENEMY_HEIGHT, enemyType);
+                enemies.push(enemy);
+            }
         }
         lastEnemyY = newY; // Update lastEnemyY for the next attempt
     }
@@ -395,7 +596,8 @@ function startGame() {
     bullets = [];
     enemies = [];
     environment = [];
-    lastEnvironmentY = -100; // Initialize to generate elements above the screen
+    riverGenerator = new RiverGenerator(); // Initialize the river generator
+    lastEnvironmentY = 0; // Start generation from the current screen bottom
     lastEnemyY = -200; // Initialize to generate enemies above the screen
 
     startScreen.classList.add('hidden');
