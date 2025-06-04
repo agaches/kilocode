@@ -1,0 +1,339 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 20px;
+    background-color: #f0f0f0;
+}
+
+h1 {
+    color: #333;
+}
+
+#game-map {
+    display: grid;
+    border: 2px solid #333;
+    background-color: #fff;
+}
+
+.tile {
+    width: 50px;
+    height: 50px;
+    border: 1px solid #ccc;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.8em;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    position: relative; /* For positioning units */
+}
+
+/* Units */
+.unit {
+    position: absolute;
+    width: 80%;
+    height: 80%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2em;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.7);
+    border: 1px solid #333;
+    z-index: 10; /* Ensure units are above tiles */
+}
+
+.unit-hp {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 0.6em;
+    color: #333;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 1px 3px;
+    border-radius: 3px;
+    z-index: 11; /* Above unit icon */
+}
+
+.unit-settler::after { content: '🚶'; }
+.unit-warrior::after { content: '⚔️'; }
+.unit-barbarian::after { content: '👹'; background-color: rgba(255, 0, 0, 0.7); } /* Red background for barbarians */
+.unit-worker::after { content: '👷'; }
+
+/* Tile Improvements */
+.tile.farm::after {
+    content: '🌾'; /* Wheat emoji for farm */
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    font-size: 0.7em;
+    opacity: 0.8;
+}
+
+/* Tile types */
+.grass { background-color: #a8e063; }
+.forest { background-color: #4CAF50; color: white; }
+.mountain { background-color: #8B4513; color: white; }
+.water { background-color: #4682B4; color: white; }
+.desert { background-color: #F4A460; }
+
+/* Tile Improvements */
+
+.tile.mine::after {
+    content: '⛏️'; /* Pickaxe emoji for mine */
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    font-size: 0.7em;
+    opacity: 0.8;
+}
+
+/* Resources */
+.resource-gold::after { content: '💰'; }
+.resource-food::after { content: '🍎'; }
+.resource-production::after { content: '⚙️'; }
+
+.unit.selected {
+    border: 2px solid blue;
+    box-shadow: 0 0 10px blue;
+}
+
+.unit.no-moves {
+    opacity: 0.6;
+    filter: grayscale(100%);
+}
+
+/* Cities */
+.city {
+    position: absolute;
+    width: 70%;
+    height: 70%;
+    background-color: #8B0000; /* Dark red for cities */
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 1em;
+    z-index: 10;
+    border: 2px solid #333;
+}
+
+#game-info {
+    margin-top: 20px;
+    padding: 10px 20px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+#next-turn-btn {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+}
+
+#next-turn-btn:hover {
+    background-color: #0056b3;
+}
+
+#city-info-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #fff;
+    border: 2px solid #333;
+    padding: 20px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    text-align: center;
+    min-width: 250px;
+}
+
+#city-info-panel h2 {
+    margin-top: 0;
+    color: #333;
+}
+
+#city-info-panel p {
+    margin: 5px 0;
+    font-size: 1.1em;
+}
+
+#city-info-panel button {
+    margin-top: 15px;
+    padding: 8px 15px;
+    background-color: #007bff; /* Blue for action buttons */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#city-info-panel button:hover {
+    background-color: #0056b3;
+}
+
+.hidden {
+    display: none;
+}
+
+#game-messages {
+    margin-top: 20px;
+    width: 80%;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 0.9em;
+}
+
+.game-message {
+    margin-bottom: 5px;
+    color: #555;
+}
+
+.game-message.important {
+    font-weight: bold;
+    color: #000;
+}
+
+.game-message.victory {
+    color: green;
+    font-weight: bold;
+}
+
+.game-message.defeat {
+    color: red;
+    font-weight: bold;
+}
+
+#tech-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #fff;
+    border: 2px solid #333;
+    padding: 20px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    text-align: center;
+    min-width: 300px;
+    max-height: 80%;
+    overflow-y: auto;
+}
+
+#tech-panel h2 {
+    margin-top: 0;
+    color: #333;
+}
+
+#tech-list {
+    list-style: none;
+    padding: 0;
+}
+
+#tech-list li {
+    background-color: #f9f9f9;
+    margin-bottom: 5px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#tech-list li.researched {
+    background-color: #d4edda; /* Light green for researched techs */
+    color: #155724;
+}
+
+#tech-list li.researching {
+    background-color: #fff3cd; /* Light yellow for researching tech */
+    color: #856404;
+}
+
+#tech-list button {
+    padding: 5px 10px;
+    background-color: #007bff; /* Blue for research button */
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+#tech-list button:hover {
+    background-color: #0056b3;
+}
+
+#tech-list button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+#close-tech-panel {
+    margin-top: 15px;
+    padding: 8px 15px;
+    background-color: #dc3545; /* Red for close button */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#victory-screen {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #fff;
+    border: 3px solid #4CAF50; /* Green border for victory */
+    padding: 30px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+    z-index: 200;
+    text-align: center;
+    min-width: 350px;
+}
+
+#victory-screen h2 {
+    color: #4CAF50;
+    font-size: 2.5em;
+    margin-top: 0;
+}
+
+#victory-screen p {
+    font-size: 1.2em;
+    margin-bottom: 20px;
+}
+
+#victory-screen button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.1em;
+}
+
+#victory-screen button:hover {
+    background-color: #0056b3;
+}
+
+#close-tech-panel:hover {
+    background-color: #c82333;
+}

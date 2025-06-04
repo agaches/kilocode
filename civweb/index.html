@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Civilization Clone - Carte</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Civilization Clone - Carte Simple</h1>
+    <div id="game-map"></div>
+    <div id="game-info">
+        <p>Turn: <span id="turn-counter">1</span></p>
+        <button id="next-turn-btn">Next Turn</button>
+    </div>
+    <div id="city-info-panel" class="hidden">
+        <h2><span id="city-info-name"></span></h2>
+        <p>Population: <span id="city-info-population"></span></p>
+        <p>Food: <span id="city-info-food"></span></p>
+        <p>Production: <span id="city-info-production"></span></p>
+        <p>Gold: <span id="city-info-gold"></span></p>
+        <button id="build-warrior-btn">Build Warrior</button>
+        <button id="build-settler-btn">Build Settler</button>
+        <button id="build-worker-btn">Build Worker</button>
+        <button id="close-city-info">Close</button>
+    </div>
+    <div id="tech-panel" class="hidden">
+        <h2>Technology Tree</h2>
+        <ul id="tech-list"></ul>
+        <button id="close-tech-panel">Close</button>
+    </div>
+    <div id="game-messages"></div>
+
+    <div id="victory-screen" class="hidden">
+        <h2>VICTORY!</h2>
+        <p id="victory-message"></p>
+        <button id="restart-game-btn">Restart Game</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
