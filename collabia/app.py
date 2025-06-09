@@ -82,7 +82,7 @@ def orchestrate_llm_collaboration(user_prompt: str, max_turns: int = 3) -> str:
         str: The final conversation transcript or the last agreed-upon response.
     """
     conversation_history = []
-    agreed_keyword = "Agreed"
+    agreed_keyword = "Meilleure réponse"
 
     # 1. Start the collaboration by calling call_claude_api with the user_prompt.
     claude_response = call_claude_api(user_prompt)
@@ -96,7 +96,7 @@ def orchestrate_llm_collaboration(user_prompt: str, max_turns: int = 3) -> str:
         gemini_prompt = (
             f"Réalise une analyse critique de la réponse de : '{claude_response}'. "
             f"Propose une réponse adaptée."
-            f"Enfin, indiques si la réponse est la meilleure ou s'il faut continuer à réfléchir."
+            f"Enfin, indiques {agreed_keyword.lower()} si la réponse est la meilleure."
         )
         gemini_response = call_gemini_api(gemini_prompt)
         conversation_history.append(f"Gemini (turn {turn + 1}): {gemini_response}")
@@ -111,7 +111,7 @@ def orchestrate_llm_collaboration(user_prompt: str, max_turns: int = 3) -> str:
         claude_prompt = (
             f"Réalise une analyse critique de la réponse de :  '{gemini_response}'. "
             f"Propose une réponse adaptée."
-            f"Enfin,  si la réponse est la meilleure, indiques Agreed."
+            f"Enfin,  si la réponse est la meilleure, indiques {agreed_keyword.lower()}."
         )
         claude_response = call_claude_api(claude_prompt)
         conversation_history.append(f"Claude (turn {turn + 1}): {claude_response}")
@@ -164,9 +164,20 @@ if prompt := st.chat_input("Posez votre question ici..."):
             # Initialization: Start the process with Claude.
             collegiate_answer = orchestrate_llm_collaboration(prompt, MAX_ITERATIONS)
 
-            st.markdown(collegiate_answer)
-    # Add assistant response to chat history
-    st.session_state.messages.append({"role": "assistant", "content": collegiate_answer})
+            claude_prompt = (
+            f"Relis la conversation et écris la réponse préférée '{collegiate_answer}'. "
+            )
+            final_response = call_claude_api(claude_prompt)
+
+            st.markdown(final_response)
+
+            # Bouton pour télécharger la conversation
+            st.download_button(
+                label="Télécharger le fichier texte",
+                data=collegiate_answer,
+                file_name='conversation.txt',
+                mime='text/plain'
+            )
 
 st.sidebar.header("À propos")
 st.sidebar.info(
